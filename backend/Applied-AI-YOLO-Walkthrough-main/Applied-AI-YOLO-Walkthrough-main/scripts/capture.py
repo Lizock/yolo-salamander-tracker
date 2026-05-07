@@ -1,7 +1,12 @@
-"""Capture webcam frames for a YOLO training dataset.
+"""Capture frames from a video file for a YOLO training dataset.
 
 Press SPACE to save the current frame to disk.
 Press Q to quit.
+
+Scrubbing controls:
+  LEFT/RIGHT arrows: Step backward/forward by 5 frames
+  HOME/END: Jump to start/end of video
+  0-9: Jump to 0%, 10%, 20%... 90% of video
 
 Frames are saved to data/captured/ as JPGs with a timestamp-based filename.
 Run from the project root: `python scripts/capture.py`.
@@ -14,32 +19,27 @@ from pathlib import Path
 import cv2
 
 
-def open_webcam(index: int = 0):
-    """Open the webcam, falling back to the DirectShow backend on Windows.
+def open_video_file(video_path: str = "sample/ensantina.mp4"):
+    """Open a video file for frame capture.
 
-    Some Windows machines need cv2.CAP_DSHOW explicitly or VideoCapture(0)
-    silently fails. Mac and Linux work with the default backend.
+    Args:
+        video_path: Path to the video file (relative or absolute)
     """
-    cap = cv2.VideoCapture(index)
-    if cap.isOpened():
-        return cap
-    if sys.platform.startswith("win"):
-        cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
-        if cap.isOpened():
-            return cap
-    raise RuntimeError(
-        "Could not open webcam. On macOS, grant camera access to your terminal in "
-        "System Settings > Privacy & Security > Camera. On Linux, ensure your user "
-        "is in the 'video' group."
-    )
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise RuntimeError(
+            f"Could not open video file: {video_path}. "
+            "Please ensure the file exists and is a valid video format."
+        )
+    return cap
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", default="data/captured",
                         help="Directory to save captured frames")
-    parser.add_argument("--camera", type=int, default=0,
-                        help="Webcam index (default 0)")
+    parser.add_argument("--video", default="sample/ensantina.mp4",
+                        help="Path to video file (default: sample/ensantina.mp4)")
     parser.add_argument("--prefix", default="frame",
                         help="Filename prefix for saved frames")
     args = parser.parse_args()
@@ -47,7 +47,7 @@ def main() -> None:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    cap = open_webcam(args.camera)
+    cap = open_video_file(args.video)
 
     print(f"Saving frames to {output_dir.resolve()}")
     print("SPACE to save, Q to quit.")
@@ -56,7 +56,7 @@ def main() -> None:
     while True:
         ok, frame = cap.read()
         if not ok:
-            print("Failed to read frame from webcam.")
+            print("Reached end of video file or failed to read frame.")
             break
 
         # Show a copy so the saved file does not include the on-screen counter.
